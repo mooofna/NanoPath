@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PocketPath: Mobile Optimized</title>
+    <title>PocketPath: WSI Analysis</title>
     
     <!-- 1. Import Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
@@ -21,12 +21,14 @@
         /* --- LAYOUT --- */
         .container { display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
         
+        /* Desktop: Side-by-Side */
         @media (min-width: 900px) {
             .container { display: grid; grid-template-columns: 1fr 1.2fr; align-items: start; }
             h1 { font-size: 2rem; }
         }
 
-        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        /* Cards */
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h3 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; font-size: 1.1rem; color: #444; }
 
         /* --- UPLOAD COMPONENTS --- */
@@ -41,8 +43,10 @@
         .upload-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px; }
         .upload-sub { font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 8px; }
         
+        /* Custom File Input styling */
         input[type="file"] { width: 100%; font-size: 0.85rem; }
 
+        /* Model List */
         #model-list { list-style: none; padding: 0; margin: 10px 0 0 0; }
         #model-list li { 
             background: white; border: 1px solid #e2e8f0; padding: 8px 12px; 
@@ -53,18 +57,12 @@
 
         /* --- VISUALIZATION --- */
         #wsi-wrapper { 
-            position: relative; width: 100%; 
-            background: #ffffff; /* Force White */
+            position: relative; width: 100%; background: #000; 
             border-radius: 12px; overflow: hidden; border: 1px solid #ddd;
+            /* Aspect Ratio Placeholder */
             min-height: 250px; display: flex; align-items: center; justify-content: center;
         }
-        #wsi-vis { 
-            max-width: 100%; max-height: 400px; 
-            object-fit: contain; display: block; 
-            background-color: #ffffff;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border: 1px solid #eee;
-        }
+        #wsi-vis { max-width: 100%; max-height: 400px; object-fit: contain; display: block; }
         
         /* Progress Bar */
         .status-bar { margin-top: 20px; }
@@ -82,6 +80,7 @@
         .badge.pos { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
         .badge.neg { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
 
+        /* --- CONTROLS --- */
         .controls-area { margin-top: 20px; }
         
         .viz-toggle { 
@@ -91,20 +90,31 @@
         }
         .viz-toggle input { margin-right: 10px; width: 18px; height: 18px; }
 
-        #btn-run { background: var(--primary); color: white; border: none; padding: 16px; font-size: 1rem; font-weight: 700; border-radius: 10px; cursor: pointer; width: 100%; box-shadow: 0 4px 6px rgba(0, 102, 204, 0.2); transition: transform 0.1s; }
+        #btn-run { 
+            background: var(--primary); color: white; border: none; 
+            padding: 16px; font-size: 1rem; font-weight: 700; 
+            border-radius: 10px; cursor: pointer; width: 100%; 
+            box-shadow: 0 4px 6px rgba(0, 102, 204, 0.2);
+            transition: transform 0.1s;
+        }
         #btn-run:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
         #btn-run:active:not(:disabled) { transform: scale(0.98); }
 
-        #console { background: #1e293b; color: #4ade80; font-family: "Menlo", monospace; padding: 15px; border-radius: 12px; height: 150px; overflow-y: auto; font-size: 11px; margin-top: 20px; line-height: 1.5; }
+        /* Console */
+        #console { 
+            background: #1e293b; color: #4ade80; font-family: "Menlo", monospace; 
+            padding: 15px; border-radius: 12px; height: 150px; 
+            overflow-y: auto; font-size: 11px; margin-top: 20px; 
+            line-height: 1.5;
+        }
         .log-err { color: #f87171; }
         
+        /* Level Selector */
         #level-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 0.9rem; }
 
     </style>
 </head>
 <body>
-
-    <div id="global-error"></div>
 
     <h1>🧬 PocketPath</h1>
     <p class="subtitle">Client-Side WSI Biomarker Prediction.<br>No Server. 100% Privacy.</p>
@@ -141,6 +151,7 @@
                     <input type="file" id="file-slide" accept=".tif,.tiff">
                 </div>
                 
+                <!-- Level Selector (Hidden until loaded) -->
                 <div id="level-container" style="display:none; margin-top: 10px;">
                     <label for="level-select" style="font-size:0.85rem; font-weight:600; color:#555; display:block; margin-bottom:5px;">Magnification Level:</label>
                     <select id="level-select"></select>
@@ -196,6 +207,7 @@
     <canvas id="proc-canvas" width="224" height="224" style="display:none;"></canvas>
 
     <script>
+        // --- GLOBAL HANDLERS ---
         window.onerror = function(message, source, lineno, colno, error) {
             log(`CRITICAL ERROR: ${message}`, true);
             return false;
@@ -203,7 +215,7 @@
 
         // --- CONFIG ---
         const TILE_SIZE = 224;
-        const MAX_PREVIEW_PIXELS = 4000000; // Reduced to 4MP to prevent Mobile Safari crash
+        const MAX_PREVIEW_PIXELS = 10000000;
 
         // --- STATE ---
         let backboneSess = null;
@@ -239,6 +251,7 @@
             const rgba = new Uint8ClampedArray(total * 4);
             const isYCbCr = fileDirectory.PhotometricInterpretation === 6;
 
+            // Optimized loops
             if (isYCbCr && rasters.length === total * 3) {
                 for (let i=0, j=0; i<rasters.length; i+=3, j+=4) {
                     const [r, g, b] = ycbcrToRgb(rasters[i], rasters[i+1], rasters[i+2]);
@@ -259,7 +272,7 @@
         // --- LOADING LOGIC ---
         async function loadBackbone(file) {
             try {
-                log(`Loading Backbone...`);
+                log(`Loading Backbone: ${file.name}...`);
                 const buffer = await file.arrayBuffer();
                 backboneSess = await ort.InferenceSession.create(buffer, { executionProviders: ['wasm'] });
                 document.getElementById('box-backbone').classList.add('loaded');
@@ -275,7 +288,8 @@
             
             for (const file of files) {
                 try {
-                    const name = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+                    const name = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " "); // Clean name
+                    log(`Loading Task: ${name}...`);
                     const buffer = await file.arrayBuffer();
                     const sess = await ort.InferenceSession.create(buffer, { executionProviders: ['wasm'] });
                     
@@ -304,35 +318,20 @@
                 const select = document.getElementById('level-select');
                 select.innerHTML = "";
                 
-                // Smart Default: Find smallest level > 500px
-                let bestIdx = 0;
-                let minPixels = Infinity;
-
                 for(let i=0; i<count; i++) {
                     const img = await tiff.getImage(i);
-                    const w = img.getWidth();
-                    const h = img.getHeight();
-                    const pixels = w*h;
-                    
                     const opt = document.createElement("option");
                     opt.value = i;
-                    opt.text = `Level ${i}: ${w} x ${h} px`;
+                    opt.text = `Level ${i}: ${img.getWidth()} x ${img.getHeight()} px`;
                     select.appendChild(opt);
-
-                    // Selection Logic: Find the smallest level that is still usable
-                    // Prefer something around 1-4MP for speed on mobile
-                    if (pixels < minPixels && pixels > 250000) {
-                        minPixels = pixels;
-                        bestIdx = i;
-                    }
                 }
                 document.getElementById('level-container').style.display = 'block';
                 
-                // If only one level exists, use it. Otherwise use smart default.
-                if (count === 1) bestIdx = 0;
-                select.value = bestIdx;
+                // Auto-select level 1 if available (faster demo), else 0
+                const defaultIdx = count > 1 ? 0 : 0; 
+                select.value = defaultIdx;
                 
-                await loadLevel(bestIdx);
+                await loadLevel(defaultIdx);
                 document.getElementById('box-slide').classList.add('loaded');
                 checkReady();
             } catch(e) { log(`Slide Error: ${e.message}`, true); }
@@ -341,45 +340,31 @@
         document.getElementById('level-select').onchange = e => loadLevel(parseInt(e.target.value));
 
         async function loadLevel(index) {
-            try {
-                tiffImage = await tiff.getImage(index);
-                const w = tiffImage.getWidth();
-                const h = tiffImage.getHeight();
-                log(`Switched to Level ${index} (${w}x${h})`);
-                
-                initCanvas(w, h);
-                
-                // iOS Protection: Only draw preview if safe
-                if (w*h < MAX_PREVIEW_PIXELS) await generateOverview(tiffImage);
-                else await tryGeneratePyramidOverview(tiff);
-            } catch(e) {
-                log(`Error switching level: ${e.message}`, true);
-            }
+            tiffImage = await tiff.getImage(index);
+            const w = tiffImage.getWidth();
+            const h = tiffImage.getHeight();
+            log(`Switched to Level ${index} (${w}x${h})`);
+            
+            initCanvas(w, h);
+            
+            if (w*h < MAX_PREVIEW_PIXELS) await generateOverview(tiffImage);
+            else await tryGeneratePyramidOverview(tiff);
         }
 
         function initCanvas(w, h) {
             const c = document.getElementById('wsi-vis');
             const wrapper = document.getElementById('wsi-wrapper');
+            // Aspect ratio fit
             const scale = Math.min(wrapper.clientWidth/w, wrapper.clientHeight/h);
+            c.width = w * scale;
+            c.height = h * scale;
             
-            // Set display size
-            c.style.width = `${w * scale}px`;
-            c.style.height = `${h * scale}px`;
-            
-            // Set actual resolution (Clamped to prevent crash)
-            // Max width 2048 is safe for mobile canvas
-            const renderScale = Math.min(1, 2048 / Math.max(w, h));
-            c.width = w * renderScale;
-            c.height = h * renderScale;
-            
-            // Add 'willReadFrequently' for performance
-            const ctx = c.getContext('2d', { willReadFrequently: true });
+            const ctx = c.getContext('2d');
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, c.width, c.height);
-            
             ctx.fillStyle = "#999";
             ctx.textAlign = "center";
-            ctx.font = "16px sans-serif";
+            ctx.font = "14px sans-serif";
             ctx.fillText("Loading Map...", c.width/2, c.height/2);
         }
 
@@ -388,40 +373,31 @@
         }
 
         async function tryGeneratePyramidOverview(handler) {
-            try {
-                const count = await handler.getImageCount();
-                for(let i=1; i<count; i++) {
-                    const sub = await handler.getImage(i);
-                    if(sub.getWidth()*sub.getHeight() < MAX_PREVIEW_PIXELS) {
-                        await renderToCanvas(sub);
-                        return;
-                    }
+            const count = await handler.getImageCount();
+            for(let i=1; i<count; i++) {
+                const sub = await handler.getImage(i);
+                if(sub.getWidth()*sub.getHeight() < MAX_PREVIEW_PIXELS) {
+                    await renderToCanvas(sub);
+                    return;
                 }
-                // No preview possible
-                const c = document.getElementById('wsi-vis');
-                const ctx = c.getContext('2d');
-                ctx.fillStyle="#ffffff";
-                ctx.fillRect(0,0,c.width,c.height);
-                ctx.fillStyle="#999";
-                ctx.fillText("Preview too large", c.width/2, c.height/2);
-            } catch(e) {}
+            }
+            // White background if no thumb
+            const c = document.getElementById('wsi-vis');
+            const ctx = c.getContext('2d');
+            ctx.fillStyle="#fff";
+            ctx.fillRect(0,0,c.width,c.height);
         }
 
         async function renderToCanvas(source) {
             try {
                 const w = source.getWidth();
                 const h = source.getHeight();
-                const canvas = document.getElementById('wsi-vis');
-                const ctx = canvas.getContext('2d');
-                
                 const rasters = await source.readRasters({interleave:true});
                 const rgba = convertToRGBA(rasters, w, h, source.fileDirectory);
                 const imgData = new ImageData(rgba, w, h);
                 const bmp = await createImageBitmap(imgData);
-                
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0,0,canvas.width, canvas.height);
-                ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+                const c = document.getElementById('wsi-vis');
+                c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
             } catch(e) { console.warn("Thumb failed"); }
         }
 
@@ -434,10 +410,12 @@
             }
         }
 
-        // --- PROCESSING HELPERS ---
+        // --- FAST PROCESSING ---
         function isTissueRaw(rgba) {
             let tissue = 0;
+            // Stride 64 = check 1 in 16 pixels
             for(let i=0; i<rgba.length; i+=64) {
+                // Check if not white/gray
                 if(rgba[i]<220 || rgba[i+1]<220 || rgba[i+2]<220) tissue++;
             }
             return tissue > ((rgba.length/4)/16)*0.05;
@@ -469,6 +447,7 @@
             const w = tiffImage.getWidth();
             const h = tiffImage.getHeight();
             
+            // Visuals
             const c = document.getElementById('wsi-vis');
             const ctx = c.getContext('2d');
             const scaleX = c.width / w;
@@ -483,6 +462,7 @@
             let accepted = 0;
             const startT = performance.now();
 
+            // Feature Loop
             for (let y=0; y<h; y+=TILE_SIZE) {
                 for (let x=0; x<w; x+=TILE_SIZE) {
                     const rW = Math.min(TILE_SIZE, w-x);
@@ -529,7 +509,8 @@
                 btn.disabled = false; btn.innerText = "Run Analysis"; return;
             }
 
-            btn.innerText = "Running Classifiers...";
+            // Inference Loop
+            log(`Running ${classifiers.length} classifiers...`);
             const flatFeats = new Float32Array(features.flat());
             const bagTensor = new ort.Tensor('float32', flatFeats, [1, features.length, 512]);
             
@@ -548,6 +529,7 @@
                     const prob = exps[1]/sum; 
                     const isPos = prob > 0.5;
                     
+                    // Draw Row
                     const row = `
                         <tr>
                             <td><strong>${clf.name}</strong></td>
