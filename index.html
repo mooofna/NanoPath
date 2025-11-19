@@ -21,14 +21,12 @@
         /* --- LAYOUT --- */
         .container { display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
         
-        /* Desktop: Side-by-Side */
         @media (min-width: 900px) {
             .container { display: grid; grid-template-columns: 1fr 1.2fr; align-items: start; }
             h1 { font-size: 2rem; }
         }
 
-        /* Cards */
-        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
         h3 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; font-size: 1.1rem; color: #444; }
 
         /* --- UPLOAD COMPONENTS --- */
@@ -43,10 +41,8 @@
         .upload-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px; }
         .upload-sub { font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 8px; }
         
-        /* Custom File Input styling */
         input[type="file"] { width: 100%; font-size: 0.85rem; }
 
-        /* Model List */
         #model-list { list-style: none; padding: 0; margin: 10px 0 0 0; }
         #model-list li { 
             background: white; border: 1px solid #e2e8f0; padding: 8px 12px; 
@@ -55,22 +51,34 @@
         }
         #model-list li .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; font-weight: 600; }
 
-        /* --- VISUALIZATION --- */
+        /* --- VISUALIZATION (FIXED) --- */
         #wsi-wrapper { 
-            position: relative; width: 100%; background: #000; 
-            border-radius: 12px; overflow: hidden; border: 1px solid #ddd;
-            /* Aspect Ratio Placeholder */
-            min-height: 250px; display: flex; align-items: center; justify-content: center;
+            width: 100%; 
+            min-height: 200px;
+            /* Remove fixed height and background from wrapper */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: transparent;
+            padding: 10px 0;
         }
-        #wsi-vis { max-width: 100%; max-height: 400px; object-fit: contain; display: block; }
+        #wsi-vis { 
+            /* Apply styles directly to the Canvas Image */
+            max-width: 100%; 
+            max-height: 500px; /* Cap height so it fits on screen */
+            object-fit: contain; 
+            display: block; 
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Professional Shadow */
+        }
         
-        /* Progress Bar */
         .status-bar { margin-top: 20px; }
         .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
         .progress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.2s; }
         .status-text { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-top: 6px; font-weight: 500; }
 
-        /* --- RESULTS TABLE --- */
         .table-wrap { overflow-x: auto; margin-top: 15px; }
         .results-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 300px; }
         .results-table th { text-align: left; border-bottom: 2px solid #f1f5f9; padding: 10px 5px; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
@@ -80,7 +88,6 @@
         .badge.pos { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
         .badge.neg { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
 
-        /* --- CONTROLS --- */
         .controls-area { margin-top: 20px; }
         
         .viz-toggle { 
@@ -90,26 +97,13 @@
         }
         .viz-toggle input { margin-right: 10px; width: 18px; height: 18px; }
 
-        #btn-run { 
-            background: var(--primary); color: white; border: none; 
-            padding: 16px; font-size: 1rem; font-weight: 700; 
-            border-radius: 10px; cursor: pointer; width: 100%; 
-            box-shadow: 0 4px 6px rgba(0, 102, 204, 0.2);
-            transition: transform 0.1s;
-        }
+        #btn-run { background: var(--primary); color: white; border: none; padding: 16px; font-size: 1rem; font-weight: 700; border-radius: 10px; cursor: pointer; width: 100%; box-shadow: 0 4px 6px rgba(0, 102, 204, 0.2); transition: transform 0.1s; }
         #btn-run:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
         #btn-run:active:not(:disabled) { transform: scale(0.98); }
 
-        /* Console */
-        #console { 
-            background: #1e293b; color: #4ade80; font-family: "Menlo", monospace; 
-            padding: 15px; border-radius: 12px; height: 150px; 
-            overflow-y: auto; font-size: 11px; margin-top: 20px; 
-            line-height: 1.5;
-        }
+        #console { background: #1e293b; color: #4ade80; font-family: "Menlo", monospace; padding: 15px; border-radius: 12px; height: 150px; overflow-y: auto; font-size: 11px; margin-top: 20px; line-height: 1.5; }
         .log-err { color: #f87171; }
         
-        /* Level Selector */
         #level-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 0.9rem; }
 
     </style>
@@ -151,7 +145,6 @@
                     <input type="file" id="file-slide" accept=".tif,.tiff">
                 </div>
                 
-                <!-- Level Selector (Hidden until loaded) -->
                 <div id="level-container" style="display:none; margin-top: 10px;">
                     <label for="level-select" style="font-size:0.85rem; font-weight:600; color:#555; display:block; margin-bottom:5px;">Magnification Level:</label>
                     <select id="level-select"></select>
@@ -171,6 +164,7 @@
         <div class="card">
             <h3>2. Real-Time View</h3>
             <div id="wsi-wrapper">
+                <!-- Canvas will resize to fit image exactly -->
                 <canvas id="wsi-vis"></canvas>
             </div>
 
@@ -354,18 +348,35 @@
         function initCanvas(w, h) {
             const c = document.getElementById('wsi-vis');
             const wrapper = document.getElementById('wsi-wrapper');
-            // Aspect ratio fit
-            const scale = Math.min(wrapper.clientWidth/w, wrapper.clientHeight/h);
-            c.width = w * scale;
-            c.height = h * scale;
+            
+            // Calculate Scaling to fit within max dimensions
+            // But preserve Aspect Ratio exactly
+            const maxW = wrapper.clientWidth;
+            const maxH = 500; // Max height limit
+            
+            const scale = Math.min(maxW / w, maxH / h);
+            
+            // Set CSS size (Display size)
+            c.style.width = `${w * scale}px`;
+            c.style.height = `${h * scale}px`;
+            
+            // Set Internal Resolution (Actual Pixels)
+            // We use 1.5x or 2x for crispness on retina screens
+            // But limit total pixels to avoid canvas crash
+            const renderScale = Math.min(1, 2000 / Math.max(w, h)); 
+            
+            c.width = w * renderScale;
+            c.height = h * renderScale;
             
             const ctx = c.getContext('2d');
+            // Fill white
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, c.width, c.height);
+            
             ctx.fillStyle = "#999";
             ctx.textAlign = "center";
-            ctx.font = "14px sans-serif";
-            ctx.fillText("Loading Map...", c.width/2, c.height/2);
+            ctx.font = "16px sans-serif";
+            ctx.fillText("Loading...", c.width/2, c.height/2);
         }
 
         async function generateOverview(img) {
@@ -381,10 +392,10 @@
                     return;
                 }
             }
-            // White background if no thumb
+            // Clear canvas to white if no preview
             const c = document.getElementById('wsi-vis');
             const ctx = c.getContext('2d');
-            ctx.fillStyle="#fff";
+            ctx.fillStyle="#ffffff";
             ctx.fillRect(0,0,c.width,c.height);
         }
 
@@ -396,8 +407,16 @@
                 const rgba = convertToRGBA(rasters, w, h, source.fileDirectory);
                 const imgData = new ImageData(rgba, w, h);
                 const bmp = await createImageBitmap(imgData);
+                
                 const c = document.getElementById('wsi-vis');
-                c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+                const ctx = c.getContext('2d');
+                
+                // Ensure background is white
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0,0,c.width, c.height);
+                
+                // Draw fitted
+                ctx.drawImage(bmp, 0, 0, c.width, c.height);
             } catch(e) { console.warn("Thumb failed"); }
         }
 
@@ -413,9 +432,7 @@
         // --- FAST PROCESSING ---
         function isTissueRaw(rgba) {
             let tissue = 0;
-            // Stride 64 = check 1 in 16 pixels
             for(let i=0; i<rgba.length; i+=64) {
-                // Check if not white/gray
                 if(rgba[i]<220 || rgba[i+1]<220 || rgba[i+2]<220) tissue++;
             }
             return tissue > ((rgba.length/4)/16)*0.05;
@@ -447,9 +464,10 @@
             const w = tiffImage.getWidth();
             const h = tiffImage.getHeight();
             
-            // Visuals
             const c = document.getElementById('wsi-vis');
             const ctx = c.getContext('2d');
+            
+            // Update Scaling for the current canvas size
             const scaleX = c.width / w;
             const scaleY = c.height / h;
             
@@ -485,7 +503,8 @@
                             accepted++;
                         } else {
                             if(doViz) {
-                                ctx.fillStyle="rgba(200,200,200,0.2)"; // Gray
+                                // Use very light gray for background
+                                ctx.fillStyle="rgba(240,240,240,0.5)";
                                 ctx.fillRect(x*scaleX, y*scaleY, rW*scaleX, rH*scaleY);
                             }
                         }
@@ -529,7 +548,6 @@
                     const prob = exps[1]/sum; 
                     const isPos = prob > 0.5;
                     
-                    // Draw Row
                     const row = `
                         <tr>
                             <td><strong>${clf.name}</strong></td>
