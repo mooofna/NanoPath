@@ -2,132 +2,174 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Client-Side WSI Pipeline (Multi-Task)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PocketPath: WSI Analysis</title>
     
     <!-- 1. Import Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.0/dist-browser/geotiff.js"></script>
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #333; }
-        h1 { color: #1a1a1a; margin-bottom: 0.5rem; }
-        p.subtitle { color: #666; margin-bottom: 2rem; }
-
-        /* Error Banner */
-        #global-error { display: none; background: #ffebee; color: #c62828; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ef9a9a; font-weight: bold; }
-
-        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        /* --- BASE STYLES --- */
+        :root { --primary: #0066cc; --bg: #f4f6f8; --text: #333; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 15px; background: var(--bg); color: var(--text); }
         
-        /* Cards */
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
-        h3 { margin-top: 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; font-size: 1.1rem; }
+        h1 { margin: 0.5rem 0 0.2rem 0; font-size: 1.5rem; color: #1a1a1a; letter-spacing: -0.5px; }
+        p.subtitle { margin: 0 0 1.5rem 0; color: #666; font-size: 0.9rem; line-height: 1.4; }
 
-        /* Upload Boxes */
-        .upload-box { border: 2px dashed #ccc; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 15px; transition: 0.2s; background: #fafafa; }
-        .upload-box:hover { border-color: #0066cc; background: #f0f7ff; }
-        .upload-box.loaded { border-color: #28a745; background: #e8f5e9; }
-        .upload-box p { margin: 5px 0; font-weight: bold; font-size: 0.9rem; }
-        input[type="file"] { font-size: 0.8rem; }
+        /* --- LAYOUT --- */
+        .container { display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
+        
+        /* Desktop: Side-by-Side */
+        @media (min-width: 900px) {
+            .container { display: grid; grid-template-columns: 1fr 1.2fr; align-items: start; }
+            h1 { font-size: 2rem; }
+        }
+
+        /* Cards */
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; font-size: 1.1rem; color: #444; }
+
+        /* --- UPLOAD COMPONENTS --- */
+        .upload-group { margin-bottom: 15px; }
+        .upload-box { 
+            border: 2px dashed #cbd5e1; border-radius: 12px; padding: 15px; 
+            text-align: center; background: #f8fafc; transition: 0.2s; position: relative;
+        }
+        .upload-box:active, .upload-box:hover { border-color: var(--primary); background: #f0f9ff; }
+        .upload-box.loaded { border-color: #10b981; background: #ecfdf5; }
+        
+        .upload-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px; }
+        .upload-sub { font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 8px; }
+        
+        /* Custom File Input styling */
+        input[type="file"] { width: 100%; font-size: 0.85rem; }
 
         /* Model List */
-        #model-list { list-style: none; padding: 0; margin: 0; text-align: left; }
-        #model-list li { background: #fff; border: 1px solid #ddd; padding: 8px; margin-top: 5px; border-radius: 4px; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
-        #model-list li span.tag { background: #e3f2fd; color: #0d47a1; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 8px; }
-
-        /* Visualization Area */
-        #wsi-wrapper { 
-            position: relative; 
-            width: 100%; 
-            height: 300px; 
-            background: #ffffff; 
-            border: 1px solid #e0e0e0; 
-            border-radius: 8px; 
-            overflow: hidden; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+        #model-list { list-style: none; padding: 0; margin: 10px 0 0 0; }
+        #model-list li { 
+            background: white; border: 1px solid #e2e8f0; padding: 8px 12px; 
+            margin-top: 6px; border-radius: 8px; font-size: 0.8rem; 
+            display: flex; justify-content: space-between; align-items: center;
         }
-        #wsi-vis { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #model-list li .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; font-weight: 600; }
+
+        /* --- VISUALIZATION --- */
+        #wsi-wrapper { 
+            position: relative; width: 100%; background: #000; 
+            border-radius: 12px; overflow: hidden; border: 1px solid #ddd;
+            /* Aspect Ratio Placeholder */
+            min-height: 250px; display: flex; align-items: center; justify-content: center;
+        }
+        #wsi-vis { max-width: 100%; max-height: 400px; object-fit: contain; display: block; }
         
-        /* Progress */
+        /* Progress Bar */
         .status-bar { margin-top: 20px; }
-        .progress-track { height: 12px; background: #e0e0e0; border-radius: 6px; overflow: hidden; margin-bottom: 5px; }
-        .progress-fill { height: 100%; width: 0%; background: #0066cc; transition: width 0.2s; }
-        .status-text { font-size: 0.9rem; color: #555; font-weight: 600; display: flex; justify-content: space-between; }
+        .progress-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.2s; }
+        .status-text { display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-top: 6px; font-weight: 500; }
 
-        /* Results Table */
-        .results-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
-        .results-table th { text-align: left; border-bottom: 2px solid #eee; padding: 8px; color: #666; }
-        .results-table td { border-bottom: 1px solid #f0f0f0; padding: 8px; vertical-align: middle; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-weight: bold; font-size: 0.8rem; }
-        .badge.pos { background: #ffebee; color: #c62828; }
-        .badge.neg { background: #e8f5e9; color: #2e7d32; }
+        /* --- RESULTS TABLE --- */
+        .table-wrap { overflow-x: auto; margin-top: 15px; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 300px; }
+        .results-table th { text-align: left; border-bottom: 2px solid #f1f5f9; padding: 10px 5px; color: #64748b; font-size: 0.8rem; text-transform: uppercase; }
+        .results-table td { border-bottom: 1px solid #f1f5f9; padding: 10px 5px; vertical-align: middle; }
+        
+        .badge { padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px; }
+        .badge.pos { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+        .badge.neg { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
 
-        /* Controls */
-        .controls-area { margin-top: auto; }
-        .viz-toggle { display: block; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9rem; cursor: pointer; border: 1px solid #eee; }
-        .viz-toggle input { margin-right: 10px; }
+        /* --- CONTROLS --- */
+        .controls-area { margin-top: 20px; }
+        
+        .viz-toggle { 
+            display: flex; align-items: center; padding: 12px; 
+            background: #f8fafc; border-radius: 8px; font-size: 0.9rem; 
+            cursor: pointer; border: 1px solid #e2e8f0; margin-bottom: 15px;
+        }
+        .viz-toggle input { margin-right: 10px; width: 18px; height: 18px; }
 
-        #btn-run { background: #0066cc; color: white; border: none; padding: 15px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: 0.2s; }
-        #btn-run:disabled { background: #ccc; cursor: not-allowed; }
-        #btn-run:hover:not(:disabled) { background: #0052a3; }
+        #btn-run { 
+            background: var(--primary); color: white; border: none; 
+            padding: 16px; font-size: 1rem; font-weight: 700; 
+            border-radius: 10px; cursor: pointer; width: 100%; 
+            box-shadow: 0 4px 6px rgba(0, 102, 204, 0.2);
+            transition: transform 0.1s;
+        }
+        #btn-run:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
+        #btn-run:active:not(:disabled) { transform: scale(0.98); }
 
-        /* Console Log */
-        #console { background: #222; color: #0f0; font-family: monospace; padding: 15px; border-radius: 8px; height: 120px; overflow-y: auto; font-size: 12px; margin-top: 20px; border: 1px solid #444; }
-        .log-line { margin-bottom: 4px; }
-        .log-err { color: #ff5555; }
+        /* Console */
+        #console { 
+            background: #1e293b; color: #4ade80; font-family: "Menlo", monospace; 
+            padding: 15px; border-radius: 12px; height: 150px; 
+            overflow-y: auto; font-size: 11px; margin-top: 20px; 
+            line-height: 1.5;
+        }
+        .log-err { color: #f87171; }
+        
+        /* Level Selector */
+        #level-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 0.9rem; }
+
     </style>
 </head>
 <body>
 
-    <div id="global-error"></div>
+    <h1>🧬 PocketPath</h1>
+    <p class="subtitle">Client-Side WSI Biomarker Prediction.<br>No Server. 100% Privacy.</p>
 
-    <h1>🧬 Client-Side WSI Pipeline (Multi-Task)</h1>
-    <p class="subtitle">Simultaneous inference of multiple biomarkers from a single slide.</p>
-
-    <div class="grid-container">
+    <div class="container">
         <!-- LEFT: SETUP -->
         <div class="card">
-            <h3>1. Load Models</h3>
+            <h3>1. Configuration</h3>
             
             <!-- Backbone -->
-            <div class="upload-box" id="box-backbone">
-                <p>Feature Extractor (Backbone)</p>
-                <small>Upload <code>mobileone.onnx</code></small>
-                <input type="file" id="file-backbone" accept=".onnx">
+            <div class="upload-group">
+                <div class="upload-box" id="box-backbone">
+                    <span class="upload-label">1. Backbone Model</span>
+                    <span class="upload-sub">Select <code>mobileone.onnx</code></span>
+                    <input type="file" id="file-backbone" accept=".onnx">
+                </div>
             </div>
 
-            <!-- Classifiers List -->
-            <div class="upload-box" id="box-classifiers">
-                <p>Downstream Classifiers (STAMP)</p>
-                <small>Select multiple .onnx files (e.g., BRAF, MSI)</small>
-                <input type="file" id="file-classifiers" accept=".onnx" multiple>
-                <ul id="model-list"></ul>
+            <!-- Classifiers -->
+            <div class="upload-group">
+                <div class="upload-box" id="box-classifiers">
+                    <span class="upload-label">2. Classifiers (STAMP)</span>
+                    <span class="upload-sub">Select multiple .onnx files</span>
+                    <input type="file" id="file-classifiers" accept=".onnx" multiple>
+                    <ul id="model-list"></ul>
+                </div>
             </div>
 
-            <h3>2. Load Slide</h3>
-            <div class="upload-box" id="box-slide">
-                <p>Whole Slide Image (.tif)</p>
-                <input type="file" id="file-slide" accept=".tif,.tiff">
-            </div>
-            
-            <div id="level-container" style="display:none; margin-bottom: 15px;">
-                <select id="level-select" style="width:100%; padding:8px;"></select>
+            <!-- Slide -->
+            <div class="upload-group">
+                <div class="upload-box" id="box-slide">
+                    <span class="upload-label">3. Whole Slide Image</span>
+                    <span class="upload-sub">Select .tif / .tiff</span>
+                    <input type="file" id="file-slide" accept=".tif,.tiff">
+                </div>
+                
+                <!-- Level Selector (Hidden until loaded) -->
+                <div id="level-container" style="display:none; margin-top: 10px;">
+                    <label for="level-select" style="font-size:0.85rem; font-weight:600; color:#555; display:block; margin-bottom:5px;">Magnification Level:</label>
+                    <select id="level-select"></select>
+                </div>
             </div>
 
             <div class="controls-area">
                 <label class="viz-toggle">
                     <input type="checkbox" id="cb-viz" checked> 
-                    Show Visualization
+                    <span><strong>Live Map</strong> (Uncheck for speed)</span>
                 </label>
-                <button id="btn-run" disabled>🚀 Run Pipeline</button>
+                <button id="btn-run" disabled>🚀 Run Analysis</button>
             </div>
         </div>
 
         <!-- RIGHT: RESULTS -->
         <div class="card">
-            <h3>3. Analysis & Results</h3>
+            <h3>2. Real-Time View</h3>
             <div id="wsi-wrapper">
                 <canvas id="wsi-vis"></canvas>
             </div>
@@ -135,38 +177,40 @@
             <div class="status-bar">
                 <div class="progress-track"><div id="p-bar" class="progress-fill"></div></div>
                 <div class="status-text">
-                    <span id="p-status">Waiting...</span>
+                    <span id="p-status">Waiting to start...</span>
                     <span id="p-percent">0%</span>
                 </div>
             </div>
 
-            <!-- Results Table -->
-            <table class="results-table" id="results-table">
-                <thead>
-                    <tr>
-                        <th>Biomarker Task</th>
-                        <th>Prediction</th>
-                        <th>Confidence</th>
-                    </tr>
-                </thead>
-                <tbody id="results-body">
-                    <tr><td colspan="3" style="text-align:center; color:#999;">No results yet</td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Biomarker</th>
+                            <th>Result</th>
+                            <th>Prob</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                        <tr><td colspan="3" style="text-align:center; padding: 20px; color:#999;">Load models and slide to begin</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="console">
+                <div>System Initialized.</div>
+            </div>
         </div>
     </div>
 
-    <div id="console">
-        <div class="log-line">System Initialized. Load your models.</div>
-    </div>
-
-    <!-- Hidden Canvas -->
+    <!-- Hidden Processing Canvas -->
     <canvas id="proc-canvas" width="224" height="224" style="display:none;"></canvas>
 
     <script>
+        // --- GLOBAL HANDLERS ---
         window.onerror = function(message, source, lineno, colno, error) {
-            document.getElementById('global-error').style.display = 'block';
-            document.getElementById('global-error').innerText = `ERROR: ${message} at line ${lineno}`;
+            log(`CRITICAL ERROR: ${message}`, true);
+            return false;
         };
 
         // --- CONFIG ---
@@ -175,7 +219,7 @@
 
         // --- STATE ---
         let backboneSess = null;
-        let classifiers = []; // Array of { name: string, session: ort.InferenceSession }
+        let classifiers = []; 
         let tiff = null;
         let tiffImage = null;
 
@@ -183,11 +227,14 @@
         const log = (msg, err=false) => {
             const c = document.getElementById('console');
             if(!c) return;
-            c.innerHTML += `<div class="log-line ${err?'log-err':''} ">> ${msg}</div>`;
+            const div = document.createElement('div');
+            div.textContent = `> ${msg}`;
+            if(err) div.classList.add('log-err');
+            c.appendChild(div);
             c.scrollTop = c.scrollHeight;
         };
 
-        // --- COLOR CORRECTION ---
+        // --- COLOR & PIXEL UTILS ---
         function ycbcrToRgb(y, cb, cr) {
             const c = y - 16;
             const d = cb - 128;
@@ -204,30 +251,32 @@
             const rgba = new Uint8ClampedArray(total * 4);
             const isYCbCr = fileDirectory.PhotometricInterpretation === 6;
 
+            // Optimized loops
             if (isYCbCr && rasters.length === total * 3) {
                 for (let i=0, j=0; i<rasters.length; i+=3, j+=4) {
                     const [r, g, b] = ycbcrToRgb(rasters[i], rasters[i+1], rasters[i+2]);
                     rgba[j]=r; rgba[j+1]=g; rgba[j+2]=b; rgba[j+3]=255;
                 }
-                return rgba;
-            }
-            if (rasters.length === total * 3) {
+            } else if (rasters.length === total * 3) {
                 for (let i=0, j=0; i<rasters.length; i+=3, j+=4) {
                     rgba[j]=rasters[i]; rgba[j+1]=rasters[i+1]; rgba[j+2]=rasters[i+2]; rgba[j+3]=255;
                 }
-                return rgba;
+            } else if (rasters.length === total * 4) {
+                return new Uint8ClampedArray(rasters);
+            } else {
+                throw new Error("Unsupported channel count");
             }
-            if (rasters.length === total * 4) return new Uint8ClampedArray(rasters);
-            throw new Error("Unsupported channel count");
+            return rgba;
         }
 
-        // --- MODEL LOADING ---
+        // --- LOADING LOGIC ---
         async function loadBackbone(file) {
             try {
+                log(`Loading Backbone: ${file.name}...`);
                 const buffer = await file.arrayBuffer();
                 backboneSess = await ort.InferenceSession.create(buffer, { executionProviders: ['wasm'] });
                 document.getElementById('box-backbone').classList.add('loaded');
-                log("Backbone loaded.");
+                log("✅ Backbone Ready.");
                 checkReady();
             } catch(e) { log(`Backbone Error: ${e.message}`, true); }
         }
@@ -236,54 +285,53 @@
             const list = document.getElementById('model-list');
             list.innerHTML = "";
             classifiers = [];
-
+            
             for (const file of files) {
                 try {
+                    const name = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " "); // Clean name
+                    log(`Loading Task: ${name}...`);
                     const buffer = await file.arrayBuffer();
                     const sess = await ort.InferenceSession.create(buffer, { executionProviders: ['wasm'] });
                     
-                    // Use filename as Task Name (e.g., "BRAF.onnx" -> "BRAF")
-                    const name = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
                     classifiers.push({ name: name, session: sess });
-
-                    // UI
+                    
                     const li = document.createElement('li');
-                    li.innerHTML = `<span><span class="tag">TASK</span>${name}</span> <span>✅ Ready</span>`;
+                    li.innerHTML = `<div class="name">${name}</div> <div style="color:green; font-size:0.7rem;">● READY</div>`;
                     list.appendChild(li);
-                } catch(e) {
-                    log(`Error loading ${file.name}`, true);
-                }
+                } catch(e) { log(`Failed: ${file.name}`, true); }
             }
-            if(classifiers.length > 0) {
-                document.getElementById('box-classifiers').classList.add('loaded');
-                log(`${classifiers.length} classifiers loaded.`);
-            }
+            if(classifiers.length > 0) document.getElementById('box-classifiers').classList.add('loaded');
             checkReady();
         }
 
         document.getElementById('file-backbone').onchange = e => loadBackbone(e.target.files[0]);
         document.getElementById('file-classifiers').onchange = e => loadClassifiers(e.target.files);
 
-        // --- SLIDE LOADING ---
+        // --- SLIDE LOGIC ---
         document.getElementById('file-slide').onchange = async (e) => {
             try {
+                log("Reading Slide Headers...");
                 tiff = await GeoTIFF.fromBlob(e.target.files[0]);
                 
-                // Level Setup
+                // Setup Levels
                 const count = await tiff.getImageCount();
                 const select = document.getElementById('level-select');
                 select.innerHTML = "";
+                
                 for(let i=0; i<count; i++) {
                     const img = await tiff.getImage(i);
                     const opt = document.createElement("option");
                     opt.value = i;
-                    opt.text = `Level ${i} (${img.getWidth()}x${img.getHeight()})`;
+                    opt.text = `Level ${i}: ${img.getWidth()} x ${img.getHeight()} px`;
                     select.appendChild(opt);
                 }
                 document.getElementById('level-container').style.display = 'block';
-                select.value = "0"; // Default to highest res
-                await loadLevel(0);
-
+                
+                // Auto-select level 1 if available (faster demo), else 0
+                const defaultIdx = count > 1 ? 0 : 0; 
+                select.value = defaultIdx;
+                
+                await loadLevel(defaultIdx);
                 document.getElementById('box-slide').classList.add('loaded');
                 checkReady();
             } catch(e) { log(`Slide Error: ${e.message}`, true); }
@@ -295,24 +343,28 @@
             tiffImage = await tiff.getImage(index);
             const w = tiffImage.getWidth();
             const h = tiffImage.getHeight();
-            log(`Selected Level ${index}: ${w}x${h} px`);
+            log(`Switched to Level ${index} (${w}x${h})`);
             
-            initVisualizer(w, h);
+            initCanvas(w, h);
+            
             if (w*h < MAX_PREVIEW_PIXELS) await generateOverview(tiffImage);
             else await tryGeneratePyramidOverview(tiff);
         }
 
-        function initVisualizer(w, h) {
+        function initCanvas(w, h) {
             const c = document.getElementById('wsi-vis');
-            const wrap = document.getElementById('wsi-wrapper');
-            const scale = Math.min(wrap.clientWidth/w, wrap.clientHeight/h);
+            const wrapper = document.getElementById('wsi-wrapper');
+            // Aspect ratio fit
+            const scale = Math.min(wrapper.clientWidth/w, wrapper.clientHeight/h);
             c.width = w * scale;
             c.height = h * scale;
+            
             const ctx = c.getContext('2d');
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.fillStyle = "#999";
             ctx.textAlign = "center";
+            ctx.font = "14px sans-serif";
             ctx.fillText("Loading Map...", c.width/2, c.height/2);
         }
 
@@ -329,10 +381,11 @@
                     return;
                 }
             }
-            // Clear canvas if no preview
+            // White background if no thumb
             const c = document.getElementById('wsi-vis');
-            c.getContext('2d').fillStyle="#fff";
-            c.getContext('2d').fillRect(0,0,c.width,c.height);
+            const ctx = c.getContext('2d');
+            ctx.fillStyle="#fff";
+            ctx.fillRect(0,0,c.width,c.height);
         }
 
         async function renderToCanvas(source) {
@@ -345,19 +398,24 @@
                 const bmp = await createImageBitmap(imgData);
                 const c = document.getElementById('wsi-vis');
                 c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-            } catch(e) { console.warn("Preview generation failed"); }
+            } catch(e) { console.warn("Thumb failed"); }
         }
 
         function checkReady() {
             if(backboneSess && classifiers.length > 0 && tiffImage) {
-                document.getElementById('btn-run').disabled = false;
+                const btn = document.getElementById('btn-run');
+                btn.disabled = false;
+                btn.innerHTML = "🚀 Run Analysis";
+                btn.style.backgroundColor = "#0066cc";
             }
         }
 
-        // --- PROCESSING HELPERS ---
+        // --- FAST PROCESSING ---
         function isTissueRaw(rgba) {
             let tissue = 0;
+            // Stride 64 = check 1 in 16 pixels
             for(let i=0; i<rgba.length; i+=64) {
+                // Check if not white/gray
                 if(rgba[i]<220 || rgba[i+1]<220 || rgba[i+2]<220) tissue++;
             }
             return tissue > ((rgba.length/4)/16)*0.05;
@@ -381,14 +439,15 @@
         document.getElementById('btn-run').onclick = async () => {
             const btn = document.getElementById('btn-run');
             const doViz = document.getElementById('cb-viz').checked;
-            btn.disabled = true; 
-            btn.innerText = "Extracting Features...";
             
-            document.getElementById('results-body').innerHTML = '<tr><td colspan="3" style="text-align:center;">Processing...</td></tr>';
-
+            btn.disabled = true; 
+            btn.innerHTML = `<span style="animation:blink 1s infinite">Running...</span>`;
+            
             let features = [];
             const w = tiffImage.getWidth();
             const h = tiffImage.getHeight();
+            
+            // Visuals
             const c = document.getElementById('wsi-vis');
             const ctx = c.getContext('2d');
             const scaleX = c.width / w;
@@ -398,10 +457,12 @@
             const yTiles = Math.ceil(h/TILE_SIZE);
             const total = xTiles * yTiles;
             
-            log(`Starting run: ${total} tiles.`);
+            log(`Starting run on ${total} tiles...`);
             let processed = 0;
             let accepted = 0;
-            
+            const startT = performance.now();
+
+            // Feature Loop
             for (let y=0; y<h; y+=TILE_SIZE) {
                 for (let x=0; x<w; x+=TILE_SIZE) {
                     const rW = Math.min(TILE_SIZE, w-x);
@@ -413,7 +474,7 @@
                         
                         if(isTissueRaw(rgba)) {
                             if(doViz) {
-                                ctx.fillStyle="rgba(0,255,0,0.4)";
+                                ctx.fillStyle="rgba(16, 185, 129, 0.4)"; // Green
                                 ctx.fillRect(x*scaleX, y*scaleY, rW*scaleX, rH*scaleY);
                             }
                             
@@ -424,7 +485,7 @@
                             accepted++;
                         } else {
                             if(doViz) {
-                                ctx.fillStyle="rgba(200,200,200,0.2)";
+                                ctx.fillStyle="rgba(200,200,200,0.2)"; // Gray
                                 ctx.fillRect(x*scaleX, y*scaleY, rW*scaleX, rH*scaleY);
                             }
                         }
@@ -441,21 +502,20 @@
                 }
             }
             
-            log(`Extraction complete. ${accepted} tiles.`);
+            log(`Extracted features for ${accepted} tiles.`);
             
             if(features.length === 0) {
                 log("No tissue found!", true);
-                btn.disabled = false; btn.innerText = "Run Pipeline"; return;
+                btn.disabled = false; btn.innerText = "Run Analysis"; return;
             }
 
-            // --- MULTI-TASK INFERENCE ---
-            btn.innerText = "Running Classifiers...";
+            // Inference Loop
+            log(`Running ${classifiers.length} classifiers...`);
             const flatFeats = new Float32Array(features.flat());
-            // [1, N, 512]
             const bagTensor = new ort.Tensor('float32', flatFeats, [1, features.length, 512]);
             
             const tbody = document.getElementById('results-body');
-            tbody.innerHTML = ""; // Clear
+            tbody.innerHTML = ""; 
 
             for (const clf of classifiers) {
                 try {
@@ -464,34 +524,34 @@
                     const res = await clf.session.run(feeds);
                     const logits = res[clf.session.outputNames[0]].data;
                     
-                    // Softmax
                     const exps = logits.map(Math.exp);
                     const sum = exps.reduce((a,b)=>a+b);
-                    const prob = exps[1]/sum; // Pos prob
+                    const prob = exps[1]/sum; 
                     const isPos = prob > 0.5;
                     
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><strong>${clf.name}</strong></td>
-                        <td><span class="badge ${isPos ? 'pos' : 'neg'}">${isPos ? 'POSITIVE (+)' : 'NEGATIVE (-)'}</span></td>
-                        <td>
-                            <div style="background:#eee; height:6px; width:100px; border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:5px;">
-                                <div style="background:${isPos?'#c62828':'#2e7d32'}; height:100%; width:${prob*100}%"></div>
-                            </div>
-                            ${(prob*100).toFixed(1)}%
-                        </td>
+                    // Draw Row
+                    const row = `
+                        <tr>
+                            <td><strong>${clf.name}</strong></td>
+                            <td><span class="badge ${isPos ? 'pos' : 'neg'}">${isPos ? 'POSITIVE' : 'NEGATIVE'}</span></td>
+                            <td>
+                                <div style="background:#eee; height:6px; width:60px; border-radius:3px; display:inline-block; vertical-align:middle; margin-right:5px;">
+                                    <div style="background:${isPos?'#ef4444':'#16a34a'}; height:100%; width:${prob*100}%"></div>
+                                </div>
+                                ${(prob*100).toFixed(1)}%
+                            </td>
+                        </tr>
                     `;
-                    tbody.appendChild(row);
+                    tbody.innerHTML += row;
                     
-                } catch(e) {
-                    log(`Error running ${clf.name}: ${e.message}`, true);
-                }
+                } catch(e) { log(`Error on ${clf.name}: ${e.message}`, true); }
             }
             
+            const totalTime = ((performance.now() - startT)/1000).toFixed(2);
+            log(`Complete in ${totalTime}s`);
             btn.disabled = false;
             btn.innerText = "Run Again";
         };
     </script>
-
 </body>
 </html>
