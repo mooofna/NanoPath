@@ -106,12 +106,48 @@
         
         #level-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 0.9rem; }
 
+        /* Download Link Style */
+        .download-btn {
+            display: inline-block;
+            margin-top: 0.5rem;
+            margin-bottom: 2rem; /* Space below the button */
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 1px solid var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px; /* Rounded pill shape */
+            transition: all 0.2s ease;
+            background-color: transparent;
+        }
+
+        .download-btn:hover {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 2px 5px rgba(0, 102, 204, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Center the header area container */
+        .header-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>🧬 PocketPath</h1>
-    <p class="subtitle">Client-Side WSI Biomarker Prediction.<br>No Server. 100% Privacy.</p>
+    <div id="global-error"></div>
+
+    <div class="header-container">
+        <h1>🧬 NanoPath</h1>
+        <p class="subtitle">Client-Side WSI Biomarker Prediction.<br>No Server. 100% Privacy.</p>
+        
+        <a href="https://drive.google.com/drive/folders/1eksErNCBaOjuGyBKiJ_Rm-APzAd81ZzB?usp=sharing" target="_blank" class="download-btn">
+            📥 Download Demo Data (Models + Slide)
+        </a>
+    </div>
 
     <div class="container">
         <!-- LEFT: SETUP -->
