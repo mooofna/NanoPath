@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PocketPath: WSI Analysis</title>
+    <title>NanoPath: Client-Side WSI Biomarker Prediction</title>
     
-    <!-- 1. Import Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.16.3/dist/ort.min.js"></script>
+    <!-- 1. FIXED: Updated to 1.18.0 to match your Python export environment -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.0/dist-browser/geotiff.js"></script>
     
     <style>
+        /* ... (Keep your existing CSS exactly as it was) ... */
         /* --- BASE STYLES --- */
         :root { --primary: #0066cc; --bg: #f4f6f8; --text: #333; }
         * { box-sizing: border-box; }
@@ -51,11 +52,10 @@
         }
         #model-list li .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; font-weight: 600; }
 
-        /* --- VISUALIZATION (FIXED) --- */
+        /* --- VISUALIZATION --- */
         #wsi-wrapper { 
             width: 100%; 
             min-height: 200px;
-            /* Remove fixed height and background from wrapper */
             display: flex; 
             align-items: center; 
             justify-content: center; 
@@ -63,15 +63,14 @@
             padding: 10px 0;
         }
         #wsi-vis { 
-            /* Apply styles directly to the Canvas Image */
             max-width: 100%; 
-            max-height: 500px; /* Cap height so it fits on screen */
+            max-height: 500px;
             object-fit: contain; 
             display: block; 
             background-color: #ffffff;
             border: 1px solid #ccc;
             border-radius: 4px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Professional Shadow */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
         .status-bar { margin-top: 20px; }
@@ -106,64 +105,37 @@
         
         #level-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 0.9rem; }
 
-        /* Download Link Style */
         .download-btn {
-            display: inline-block;
-            margin-top: 0.5rem;
-            margin-bottom: 2rem; /* Space below the button */
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            border: 1px solid var(--primary);
-            padding: 8px 16px;
-            border-radius: 20px; /* Rounded pill shape */
-            transition: all 0.2s ease;
-            background-color: transparent;
+            display: inline-block; margin-top: 0.5rem; margin-bottom: 2rem; color: var(--primary);
+            text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid var(--primary);
+            padding: 8px 16px; border-radius: 20px; transition: all 0.2s ease; background-color: transparent;
         }
+        .download-btn:hover { background-color: var(--primary); color: white; box-shadow: 0 2px 5px rgba(0, 102, 204, 0.2); transform: translateY(-1px); }
 
-        .download-btn:hover {
-            background-color: var(--primary);
-            color: white;
-            box-shadow: 0 2px 5px rgba(0, 102, 204, 0.2);
-            transform: translateY(-1px);
-        }
-
-        /* Center the header area container */
-        .header-container {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+        .header-container { text-align: center; margin-bottom: 20px; }
     </style>
 </head>
 <body>
-
+    <!-- ... (HTML Body structure same as before) ... -->
     <div id="global-error"></div>
-
     <div class="header-container">
         <h1>🧬 NanoPath</h1>
         <p class="subtitle">Client-Side WSI Biomarker Prediction.<br>No Server. 100% Privacy.</p>
-        
         <a href="https://drive.google.com/drive/folders/1eksErNCBaOjuGyBKiJ_Rm-APzAd81ZzB?usp=sharing" target="_blank" class="download-btn">
             📥 Download Demo Data (Models + Slide)
         </a>
     </div>
-
     <div class="container">
-        <!-- LEFT: SETUP -->
         <div class="card">
             <h3>1. Configuration</h3>
-            
-            <!-- Backbone -->
             <div class="upload-group">
                 <div class="upload-box" id="box-backbone">
                     <span class="upload-label">1. Backbone Model</span>
-                    <span class="upload-sub">Select <code>mobileone.onnx</code></span>
+                    <!-- NOTE: Warning to user to use INT8 -->
+                    <span class="upload-sub">Select <code>mobileone.onnx</code> (INT8)</span>
                     <input type="file" id="file-backbone" accept=".onnx">
                 </div>
             </div>
-
-            <!-- Classifiers -->
             <div class="upload-group">
                 <div class="upload-box" id="box-classifiers">
                     <span class="upload-label">2. Classifiers (STAMP)</span>
@@ -172,21 +144,17 @@
                     <ul id="model-list"></ul>
                 </div>
             </div>
-
-            <!-- Slide -->
             <div class="upload-group">
                 <div class="upload-box" id="box-slide">
                     <span class="upload-label">3. Whole Slide Image</span>
                     <span class="upload-sub">Select .tif / .tiff</span>
                     <input type="file" id="file-slide" accept=".tif,.tiff">
                 </div>
-                
                 <div id="level-container" style="display:none; margin-top: 10px;">
                     <label for="level-select" style="font-size:0.85rem; font-weight:600; color:#555; display:block; margin-bottom:5px;">Magnification Level:</label>
                     <select id="level-select"></select>
                 </div>
             </div>
-
             <div class="controls-area">
                 <label class="viz-toggle">
                     <input type="checkbox" id="cb-viz" checked> 
@@ -195,15 +163,11 @@
                 <button id="btn-run" disabled>🚀 Run Analysis</button>
             </div>
         </div>
-
-        <!-- RIGHT: RESULTS -->
         <div class="card">
             <h3>2. Real-Time View</h3>
             <div id="wsi-wrapper">
-                <!-- Canvas will resize to fit image exactly -->
                 <canvas id="wsi-vis"></canvas>
             </div>
-
             <div class="status-bar">
                 <div class="progress-track"><div id="p-bar" class="progress-fill"></div></div>
                 <div class="status-text">
@@ -211,29 +175,17 @@
                     <span id="p-percent">0%</span>
                 </div>
             </div>
-
             <div class="table-wrap">
                 <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th>Biomarker</th>
-                            <th>Result</th>
-                            <th>Prob</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Biomarker</th><th>Result</th><th>Prob</th></tr></thead>
                     <tbody id="results-body">
                         <tr><td colspan="3" style="text-align:center; padding: 20px; color:#999;">Load models and slide to begin</td></tr>
                     </tbody>
                 </table>
             </div>
-            
-            <div id="console">
-                <div>System Initialized.</div>
-            </div>
+            <div id="console"><div>System Initialized.</div></div>
         </div>
     </div>
-
-    <!-- Hidden Processing Canvas -->
     <canvas id="proc-canvas" width="224" height="224" style="display:none;"></canvas>
 
     <script>
@@ -244,7 +196,8 @@
         };
 
         // --- CONFIG ---
-        const TILE_SIZE = 224;
+        // NOTE: Ensure your STAMP classifiers expect 512. If 1024, change this.
+        const TILE_SIZE = 224; 
         const MAX_PREVIEW_PIXELS = 10000000;
 
         // --- STATE ---
@@ -281,7 +234,6 @@
             const rgba = new Uint8ClampedArray(total * 4);
             const isYCbCr = fileDirectory.PhotometricInterpretation === 6;
 
-            // Optimized loops
             if (isYCbCr && rasters.length === total * 3) {
                 for (let i=0, j=0; i<rasters.length; i+=3, j+=4) {
                     const [r, g, b] = ycbcrToRgb(rasters[i], rasters[i+1], rasters[i+2]);
@@ -303,12 +255,30 @@
         async function loadBackbone(file) {
             try {
                 log(`Loading Backbone: ${file.name}...`);
+                
+                // 1. Check for FP32 usage which crashes browsers
+                if(file.name.includes("fp32")) {
+                     log("⚠️ WARNING: You selected the FP32 (large) model.", true);
+                     log("⚠️ This may crash the browser. Please use 'mobileone.onnx' (INT8).", true);
+                }
+                
                 const buffer = await file.arrayBuffer();
-                backboneSess = await ort.InferenceSession.create(buffer, { executionProviders: ['wasm'] });
+                
+                // 2. Create Session (Updated options for 1.18.0)
+                backboneSess = await ort.InferenceSession.create(buffer, { 
+                    executionProviders: ['wasm'],
+                    graphOptimizationLevel: 'all'
+                });
+                
                 document.getElementById('box-backbone').classList.add('loaded');
                 log("✅ Backbone Ready.");
                 checkReady();
-            } catch(e) { log(`Backbone Error: ${e.message}`, true); }
+            } catch(e) { 
+                // 3. FIXED ERROR LOGGING: Print full error object if message is undefined
+                const errMsg = e.message ? e.message : e.toString();
+                log(`Backbone Error: ${errMsg}`, true); 
+                console.error(e); // Print full trace to browser console
+            }
         }
 
         async function loadClassifiers(files) {
@@ -318,7 +288,7 @@
             
             for (const file of files) {
                 try {
-                    const name = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " "); // Clean name
+                    const name = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
                     log(`Loading Task: ${name}...`);
                     const buffer = await file.arrayBuffer();
                     const sess = await ort.InferenceSession.create(buffer, { executionProviders: ['wasm'] });
@@ -328,7 +298,7 @@
                     const li = document.createElement('li');
                     li.innerHTML = `<div class="name">${name}</div> <div style="color:green; font-size:0.7rem;">● READY</div>`;
                     list.appendChild(li);
-                } catch(e) { log(`Failed: ${file.name}`, true); }
+                } catch(e) { log(`Failed: ${file.name} (${e})`, true); }
             }
             if(classifiers.length > 0) document.getElementById('box-classifiers').classList.add('loaded');
             checkReady();
@@ -343,7 +313,6 @@
                 log("Reading Slide Headers...");
                 tiff = await GeoTIFF.fromBlob(e.target.files[0]);
                 
-                // Setup Levels
                 const count = await tiff.getImageCount();
                 const select = document.getElementById('level-select');
                 select.innerHTML = "";
@@ -357,7 +326,6 @@
                 }
                 document.getElementById('level-container').style.display = 'block';
                 
-                // Auto-select level 1 if available (faster demo), else 0
                 const defaultIdx = count > 1 ? 0 : 0; 
                 select.value = defaultIdx;
                 
@@ -384,31 +352,17 @@
         function initCanvas(w, h) {
             const c = document.getElementById('wsi-vis');
             const wrapper = document.getElementById('wsi-wrapper');
-            
-            // Calculate Scaling to fit within max dimensions
-            // But preserve Aspect Ratio exactly
             const maxW = wrapper.clientWidth;
-            const maxH = 500; // Max height limit
-            
+            const maxH = 500;
             const scale = Math.min(maxW / w, maxH / h);
-            
-            // Set CSS size (Display size)
             c.style.width = `${w * scale}px`;
             c.style.height = `${h * scale}px`;
-            
-            // Set Internal Resolution (Actual Pixels)
-            // We use 1.5x or 2x for crispness on retina screens
-            // But limit total pixels to avoid canvas crash
             const renderScale = Math.min(1, 2000 / Math.max(w, h)); 
-            
             c.width = w * renderScale;
             c.height = h * renderScale;
-            
             const ctx = c.getContext('2d');
-            // Fill white
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, c.width, c.height);
-            
             ctx.fillStyle = "#999";
             ctx.textAlign = "center";
             ctx.font = "16px sans-serif";
@@ -428,11 +382,8 @@
                     return;
                 }
             }
-            // Clear canvas to white if no preview
             const c = document.getElementById('wsi-vis');
-            const ctx = c.getContext('2d');
-            ctx.fillStyle="#ffffff";
-            ctx.fillRect(0,0,c.width,c.height);
+            c.getContext('2d').fillRect(0,0,c.width,c.height);
         }
 
         async function renderToCanvas(source) {
@@ -443,15 +394,10 @@
                 const rgba = convertToRGBA(rasters, w, h, source.fileDirectory);
                 const imgData = new ImageData(rgba, w, h);
                 const bmp = await createImageBitmap(imgData);
-                
                 const c = document.getElementById('wsi-vis');
                 const ctx = c.getContext('2d');
-                
-                // Ensure background is white
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(0,0,c.width, c.height);
-                
-                // Draw fitted
                 ctx.drawImage(bmp, 0, 0, c.width, c.height);
             } catch(e) { console.warn("Thumb failed"); }
         }
@@ -499,11 +445,8 @@
             let features = [];
             const w = tiffImage.getWidth();
             const h = tiffImage.getHeight();
-            
             const c = document.getElementById('wsi-vis');
             const ctx = c.getContext('2d');
-            
-            // Update Scaling for the current canvas size
             const scaleX = c.width / w;
             const scaleY = c.height / h;
             
@@ -516,7 +459,7 @@
             let accepted = 0;
             const startT = performance.now();
 
-            // Feature Loop
+            // 1. EXTRACTION LOOP
             for (let y=0; y<h; y+=TILE_SIZE) {
                 for (let x=0; x<w; x+=TILE_SIZE) {
                     const rW = Math.min(TILE_SIZE, w-x);
@@ -526,10 +469,15 @@
                         const rasters = await tiffImage.readRasters({window:[x,y,x+rW,y+rH], interleave:true});
                         const rgba = convertToRGBA(rasters, rW, rH, tiffImage.fileDirectory);
                         
+                        const dispX = x*scaleX;
+                        const dispY = y*scaleY;
+                        const dispW = rW*scaleX;
+                        const dispH = rH*scaleY;
+
                         if(isTissueRaw(rgba)) {
                             if(doViz) {
-                                ctx.fillStyle="rgba(16, 185, 129, 0.4)"; // Green
-                                ctx.fillRect(x*scaleX, y*scaleY, rW*scaleX, rH*scaleY);
+                                ctx.fillStyle="rgba(16, 185, 129, 0.4)"; 
+                                ctx.fillRect(dispX, dispY, dispW, dispH);
                             }
                             
                             const feeds = {};
@@ -539,9 +487,8 @@
                             accepted++;
                         } else {
                             if(doViz) {
-                                // Use very light gray for background
                                 ctx.fillStyle="rgba(240,240,240,0.5)";
-                                ctx.fillRect(x*scaleX, y*scaleY, rW*scaleX, rH*scaleY);
+                                ctx.fillRect(dispX, dispY, dispW, dispH);
                             }
                         }
                     } catch(e){}
@@ -564,7 +511,7 @@
                 btn.disabled = false; btn.innerText = "Run Analysis"; return;
             }
 
-            // Inference Loop
+            // 2. CLASSIFICATION LOOP
             log(`Running ${classifiers.length} classifiers...`);
             const flatFeats = new Float32Array(features.flat());
             const bagTensor = new ort.Tensor('float32', flatFeats, [1, features.length, 512]);
@@ -597,7 +544,6 @@
                         </tr>
                     `;
                     tbody.innerHTML += row;
-                    
                 } catch(e) { log(`Error on ${clf.name}: ${e.message}`, true); }
             }
             
